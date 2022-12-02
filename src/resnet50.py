@@ -83,18 +83,20 @@ class resnetdlim:
         
         return (distances, indices)
 
-    def mAp_resnet(self, results):
+    def mAp_resnet(self, results, queries, reference):
         PATH_TO_GT = os.path.join("./", "INRIA_HOLYDAYS.json")
         gt_data = None
         with open(PATH_TO_GT, 'r') as in_gt:
             gt_data = json.load(in_gt)
 
+        # Reference images from the model
+        IMG_IDS = [p.split('/')[-1][:-4] for p in reference]
+        # Ids of the queries
+        QUERY_IDS = [p.split('/')[-1][:-4] for p in queries]
 
-        jpg_paths = glob.glob("./*/*/*.jpg", recursive=True)
-        IMG_IDS = [p.split('/')[-1][:-4] for p in jpg_paths]
+        # Mapping from the image name to index in reference
         imgid_to_index = {imgid: ii for ii, imgid in enumerate(IMG_IDS)}
-       
-        query_imnos = [imgid_to_index[query_id] for query_id in gt_data.keys()]
+        query_imnos = [imgid_to_index[query_id] for query_id in QUERY_IDS]
 
         aps = []  # list of average precisions for all queries
         for qimno, qres in zip(query_imnos, results):
@@ -120,8 +122,7 @@ class resnetdlim:
                 precision_0 = ntp/float(rank) if rank > 0 else 1.0
                 # y-size on right side of trapezoid:
                 precision_1 = (ntp + 1) / float(rank + 1)
-                #ap += recall_step * precision_0 + (recall_step * (precision_1 - precision_0)) / 2 # FIXME what is the area under the PR curve?
-                ap += ((precision_0 + precision_1) * recall_step) / 2 
+                ap += ((precision_0 + precision_1) * recall_step) / 2
             print("query %s, AP = %.3f" % (qname, ap))
             aps.append(ap)
 

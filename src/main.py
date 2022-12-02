@@ -10,8 +10,19 @@ if __name__ == '__main__':
         paths = utils.collect_INRIA_Holidays_paths(args.data)
         model = resnet50.resnetdlim()
         model.get_reference(paths)
-        print(paths[0])
         print("Execute Query")
-        distances, results = model.execute_query(paths)
-        print("Results shape : ",results.shape)
-        model.mAp_resnet(results)
+
+        queries = paths
+        reference = model.paths
+        distances, results = model.execute_query(queries)
+        print("Res", results[0])
+        print("Dis", distances[0])
+        print("paths", paths[0])
+
+        # for r in result[0]:
+        #     print(paths[r])
+        # print(distance, result)
+        
+        
+        print("Results shape : ", results.shape)
+        model.mAp_resnet(results, queries, reference)
