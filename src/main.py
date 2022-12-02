@@ -12,7 +12,6 @@ if __name__ == '__main__':
         model.get_reference(paths)
         print(paths[0])
         print("Execute Query")
-        distance, result = model.execute_query([paths[0]])
-        for r in result[0]:
-            print(paths[r])
-        print(distance, result)
+        distances, results = model.execute_query(paths)
+        print("Results shape : ",results.shape)
+        model.mAp_resnet(results)

@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import sklearn
 from tensorflow.keras import layers
 from tensorflow.keras import Model
 from tensorflow.keras.applications import resnet
@@ -7,7 +8,8 @@ from tensorflow.keras.applications.resnet import preprocess_input
 from sklearn.neighbors import NearestNeighbors
 import utils
 import os
-
+import json
+import glob 
 
 target_shape = (224, 224)
 class resnetdlim:
@@ -51,6 +53,76 @@ class resnetdlim:
         return ref_embedding
 
     def execute_query(self, paths):
-        query_vectors = self.get_embeddings(paths, 32, None)
-        distances, indices = self.search_engine.kneighbors(query_vectors, 9)
+        distances = None
+        indices = None
+
+        if (os.path.isfile("INRIA_Holidays/distances.npy")):
+            with open("INRIA_Holidays/distances.npy", "rb") as f:
+                distances = np.load(f)
+            print ("\n    Loaded distances from cache...")
+        else:
+            print("\n   NO distances cached, generating.. ")
+
+        if (os.path.isfile("INRIA_Holidays/indices.npy")):
+            with open("INRIA_Holidays/indices.npy", "rb") as f:
+                indices = np.load(f)
+            print ("\n    Loaded indices from cache...")
+        else:
+            print("\n   NO indices cached, generating.. ")
+
+        if (distances is None or indices is None):
+            print("\n   generating ...")
+            query_vectors = self.get_embeddings(paths, 32, None)
+            distances, indices = self.search_engine.kneighbors(query_vectors, 9)
+           
+            with open("INRIA_Holidays/distances.npy", "wb") as f:
+                np.save(f, distances)
+
+            with open("INRIA_Holidays/indices.npy", "wb") as f:
+                np.save(f, indices)
+        
         return (distances, indices)
+
+    def mAp_resnet(self, results):
+        PATH_TO_GT = os.path.join("./", "INRIA_HOLYDAYS.json")
+        gt_data = None
+        with open(PATH_TO_GT, 'r') as in_gt:
+            gt_data = json.load(in_gt)
+
+
+        jpg_paths = glob.glob("./*/*/*.jpg", recursive=True)
+        IMG_IDS = [p.split('/')[-1][:-4] for p in jpg_paths]
+        imgid_to_index = {imgid: ii for ii, imgid in enumerate(IMG_IDS)}
+       
+        query_imnos = [imgid_to_index[query_id] for query_id in gt_data.keys()]
+
+        aps = []  # list of average precisions for all queries
+        for qimno, qres in zip(query_imnos, results):
+            qname = IMG_IDS[qimno]
+        #     print("query:", qname)
+            # collect the positive results in the dataset
+            # the positives have the same prefix as the query image
+            positive_results = [imgid_to_index[img_id] for img_id in gt_data[IMG_IDS[qimno]]]
+        #     print("positive_results:", positive_results)
+        #     print("qres:", qres)
+            #
+            # ranks of positives. We skip the result #0, assumed to be the query image
+            ranks = [i for i, res in enumerate(qres[1:]) if res in positive_results]
+        #     print("ranks:", ranks)
+            #
+            # accumulate trapezoids with this basis
+            recall_step = 1.0 / len(positive_results)  # FIXME what is the size of a step?
+            ap = 0
+            for ntp, rank in enumerate(ranks):
+                # ntp = nb of true positives so far
+                # rank = nb of retrieved items so far
+                # y-size on left side of trapezoid:
+                precision_0 = ntp/float(rank) if rank > 0 else 1.0
+                # y-size on right side of trapezoid:
+                precision_1 = (ntp + 1) / float(rank + 1)
+                #ap += recall_step * precision_0 + (recall_step * (precision_1 - precision_0)) / 2 # FIXME what is the area under the PR curve?
+                ap += ((precision_0 + precision_1) * recall_step) / 2 
+            print("query %s, AP = %.3f" % (qname, ap))
+            aps.append(ap)
+
+        print("mean AP = %.3f" % np.mean(aps))  # FIXME mean average precision
