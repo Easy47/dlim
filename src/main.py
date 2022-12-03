@@ -1,6 +1,7 @@
 import argparse
 import utils
 import resnet50
+import resnet50_triplets
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
@@ -8,7 +9,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if (args.data is not None):
         jpg_paths = utils.collect_INRIA_Holidays_paths(args.data)
-        model = resnet50.resnetdlim(args.data, jpg_paths)
+        #model = resnet50.resnetdlim(args.data, jpg_paths)
+        model = resnet50_triplets.resnet_triplets(args.data, jpg_paths)
         print("Execute Query")
 
         queries = jpg_paths
