@@ -64,7 +64,7 @@ class resnetdlim:
         ref_embedding = self.resnet_feature_extractor.predict(train_dataset)
         return ref_embedding
 
-    def execute_query(self, paths):
+    def execute_query(self, paths, nb_neigh):
         distances = None
         indices = None
 
@@ -87,7 +87,7 @@ class resnetdlim:
         if (distances is None or indices is None):
             print("\n   generating ...")
             query_vectors = self.get_embeddings(paths, 32, None)
-            distances, indices = self.search_engine.kneighbors(query_vectors, 9)
+            distances, indices = self.search_engine.kneighbors(query_vectors, nb_neigh)
            
             with open(self.dataset_path + "/distances.npy", "wb") as f:
                 np.save(f, distances)
@@ -97,7 +97,7 @@ class resnetdlim:
         
         return (distances, indices)
 
-    def mAp_resnet(self, results, queries, reference):
+    def mAp_resnet(self, results, queries, reference, nb_neigh):
         # Load the gt file
         PATH_TO_GT = self.dataset_path + "/GT.json"
         gt_data = None
@@ -125,7 +125,12 @@ class resnetdlim:
             ranks = [i for i, res in enumerate(qres[1:]) if res in positive_results]
             
             # accumulate trapezoids with this basis
-            recall_step = 1.0 / len(positive_results)  
+            recall_step = 0
+            if (nb_neigh - 1 > len(positive_results)):
+                recall_step = 1.0 / len(positive_results)  # FIXME what is the size of a step?
+            else:
+                recall_step = 1.0 / (nb_neigh - 1)
+
             ap = 0
             for ntp, rank in enumerate(ranks):
                 # ntp = nb of true positives so far
