@@ -8,8 +8,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if (args.data is not None):
         jpg_paths = utils.collect_INRIA_Holidays_paths(args.data)
-        model = resnet50.resnetdlim(args.data)
-        model.get_reference(jpg_paths)
+        model = resnet50.resnetdlim(args.data, jpg_paths)
         print("Execute Query")
 
         queries = jpg_paths
