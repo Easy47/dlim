@@ -39,9 +39,6 @@ class SiameseModel(Model):
 
     def __init__(self, siamese_network, margin=0.5):
         super(SiameseModel, self).__init__()
-        print("-----------------VERSION--------------------")
-        tf.print(tf.__version__)
-        print(tf.__version__)
         self.siamese_network = siamese_network
         self.margin = margin
         self.loss_tracker = tf.metrics.Mean(name="loss")
@@ -97,7 +94,7 @@ class SiameseModel(Model):
 
 target_shape = (224, 224)
 class resnet_triplets:
-    def __init__(self, dataset_path, jpg_paths):
+    def __init__(self, dataset_path, jpg_paths, dataset):
         # set class variables
         self.dataset_path = dataset_path
         self.resnet_feature_extractor = None
@@ -105,10 +102,15 @@ class resnet_triplets:
         self.val_dataset = None
 
         # Now create triplets
-        self.create_triplets(jpg_paths)
+        self.create_triplets(jpg_paths, dataset)
 
         # First create network
-        self.create_network()
+        if (not os.path.isdir("./models/embeddings")):
+            print("create network")
+            self.create_network()
+        else:
+            self.resnet_feature_extractor = tf.keras.models.load_model('./models/embeddings')
+            print("feature extractor loaded")
 
         self.get_reference(jpg_paths)
 
@@ -133,7 +135,8 @@ class resnet_triplets:
                 trainable = True
             layer.trainable = trainable
         
-        embedding = Model(base_cnn.input, output, name="Embedding") 
+
+        embedding = Model(base_cnn.input, output, name="Embedding")
         
         anchor_input = layers.Input(name="anchor", shape=target_shape + (3,))
         positive_input = layers.Input(name="positive", shape=target_shape + (3,))
@@ -150,13 +153,17 @@ class resnet_triplets:
         )
         
         siamese_model = SiameseModel(siamese_network)
-        siamese_model.compile(optimizer=tf.optimizers.Adam(0.0001))
+        siamese_model.compile(optimizer=tf.optimizers.Adam(0.0001), weighted_metrics=[])
 
         # TODO: we need to cache this
         siamese_model.fit(self.train_dataset, epochs=5, validation_data=self.val_dataset)
+
+        # Save model
+        embedding.save("./models/embeddings")
+        print("feature extractor saved")
         self.resnet_feature_extractor = embedding
 
-    def create_triplets(self, jpg_paths):
+    def create_triplets(self, jpg_paths, dataset):
         self.jpg_paths = jpg_paths
        
         # load GT
@@ -173,8 +180,14 @@ class resnet_triplets:
         
         for ii, imgid in enumerate(list(gt_data.keys())):
             for posi in values[ii]:
-                anchor_path.append(self.dataset_path + "/jpg/" + str(imgid) + ".jpg")
-                posi_path.append(self.dataset_path + "/jpg/" + str(posi) + ".jpg")
+                
+                if (dataset == utils.Dataset.INRIA):
+                    anchor_path.append(utils.get_INRIA_path(imgid))
+                    posi_path.append(utils.get_INRIA_path(posi))
+                else:
+                    anchor_path.append(utils.get_Paris_path(imgid))
+                    posi_path.append(utils.get_Paris_path(posi))
+                break
         
         # Create dataset from path lists
         anchor_dataset = tf.data.Dataset.from_tensor_slices(anchor_path)
@@ -237,7 +250,7 @@ class resnet_triplets:
             self.preprocess_image_for_triplets(negative),
         )
     
-    def preprocess_image_for_embedding(filename):
+    def preprocess_image_for_embedding(self, filename):
         """
         Load the specified file as a JPEG image, preprocess it and
         resize it to the target shape.
@@ -251,11 +264,11 @@ class resnet_triplets:
 
     def get_reference(self, jpg_paths):
         self.jpg_paths = jpg_paths
-        self.ref_embedding = self.get_embeddings(jpg_paths, self.dataset_path + "/cache.npy")
+        self.ref_embedding = self.get_embeddings(jpg_paths, 16, self.dataset_path + "/cache.npy")
         self.search_engine = NearestNeighbors()
         self.search_engine.fit(self.ref_embedding)
 
-    def get_embeddings(self, jpg_paths, cache=None):
+    def get_embeddings(self, jpg_paths, batch_size, cache=None):
         ref = None
         if (cache != None and os.path.isfile(cache)):
             with open(cache, "rb") as f:
@@ -265,10 +278,12 @@ class resnet_triplets:
         if (cache != None and not os.path.isfile(cache)):
             with open(cache, "wb") as f:
                 np.save(f, ref)
-        ref_embedding = self.resnet_feature_extractor.predict(ref)
+        train_dataset = tf.data.Dataset.from_tensor_slices((ref))
+        train_dataset = train_dataset.batch(batch_size)
+        ref_embedding = self.resnet_feature_extractor.predict(train_dataset)
         return ref_embedding
 
-    def execute_query(self, paths):
+    def execute_query(self, paths, nb_neigh):
         distances = None
         indices = None
 
@@ -288,8 +303,8 @@ class resnet_triplets:
 
         if (distances is None or indices is None):
             print("\n   generating ...")
-            query_vectors = self.get_embeddings(paths,None)
-            distances, indices = self.search_engine.kneighbors(query_vectors, 9)
+            query_vectors = self.get_embeddings(paths, 16, cache=None)
+            distances, indices = self.search_engine.kneighbors(query_vectors, nb_neigh)
            
             with open(self.dataset_path + "/distances.npy", "wb") as f:
                 np.save(f, distances)
@@ -299,7 +314,7 @@ class resnet_triplets:
         
         return (distances, indices)
 
-    def mAp_resnet(self, results, queries, reference):
+    def mAp_resnet(self, results, queries, reference, nb_neigh):
         PATH_TO_GT = self.dataset_path + "/GT.json"
         gt_data = None
         with open(PATH_TO_GT, 'r') as in_gt:
@@ -329,7 +344,12 @@ class resnet_triplets:
         #     print("ranks:", ranks)
             #
             # accumulate trapezoids with this basis
-            recall_step = 1.0 / len(positive_results)  # FIXME what is the size of a step?
+            recall_step = 0
+            if (nb_neigh - 1 > len(positive_results)):
+                recall_step = 1.0 / len(positive_results)  # FIXME what is the size of a step?
+            else:
+                recall_step = 1.0 / (nb_neigh - 1)
+
             ap = 0
             for ntp, rank in enumerate(ranks):
                 # ntp = nb of true positives so far
@@ -339,7 +359,6 @@ class resnet_triplets:
                 # y-size on right side of trapezoid:
                 precision_1 = (ntp + 1) / float(rank + 1)
                 ap += ((precision_0 + precision_1) * recall_step) / 2
-            print("query %s, AP = %.3f" % (qname, ap))
             aps.append(ap)
 
         print("mean AP = %.3f" % np.mean(aps))  # FIXME mean average precision

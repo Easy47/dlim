@@ -29,7 +29,7 @@ class resnetdlim:
         self.jpg_paths = jpg_paths
 
         # Get embeddings in cache.npy files or generate them 
-        self.ref_embedding = self.get_embeddings(jpg_paths, 32, self.dataset_path + "/cache.npy")
+        self.ref_embedding = self.get_embeddings(jpg_paths, 16, self.dataset_path + "/cache.npy")
 
         # Fit search_engine on embeddings
         self.search_engine = NearestNeighbors()
@@ -86,7 +86,7 @@ class resnetdlim:
         # If there are no cache files, we generate them
         if (distances is None or indices is None):
             print("\n   generating ...")
-            query_vectors = self.get_embeddings(paths, 32, None)
+            query_vectors = self.get_embeddings(paths, 16, None)
             distances, indices = self.search_engine.kneighbors(query_vectors, nb_neigh)
            
             with open(self.dataset_path + "/distances.npy", "wb") as f:
