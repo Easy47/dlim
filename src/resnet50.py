@@ -13,16 +13,17 @@ import glob
 
 target_shape = (224, 224)
 class resnetdlim:
-    def __init__(self):
+    def __init__(self, dataset_path):
         self.ResNet = resnet.ResNet50(
             weights="imagenet", include_top=False,  input_shape=target_shape + (3,), pooling="avg"
         )
         output = layers.Flatten()(self.ResNet.output)
         self.resnet_feature_extractor = Model(self.ResNet.input, output, name="Embedding")
+        self.dataset_path = dataset_path
 
-    def get_reference(self, paths):
-        self.paths = paths
-        self.ref_embedding = self.get_embeddings(paths, 32, "INRIA_Holidays/cache.npy")
+    def get_reference(self, jpg_paths):
+        self.jpg_paths = jpg_paths
+        self.ref_embedding = self.get_embeddings(jpg_paths, 32, self.dataset_path + "/cache.npy")
         self.search_engine = NearestNeighbors()
         self.search_engine.fit(self.ref_embedding)
 
@@ -31,19 +32,18 @@ class resnetdlim:
         Load the specified file as a JPEG image, preprocess it and
         resize it to the target shape.
         """
-        
         image = tf.keras.utils.load_img(filename)
         image = image.convert('RGB')
         image = image.resize((target_shape))
         return preprocess_input(np.array(image))
 
-    def get_embeddings(self, paths, batch_size, cache=None):
+    def get_embeddings(self, jpg_paths, batch_size, cache=None):
         ref = None
         if (cache != None and os.path.isfile(cache)):
             with open(cache, "rb") as f:
                 ref = np.load(f)
         else:
-            ref = np.array([self.preprocess_image(path) for path in paths])
+            ref = np.array([self.preprocess_image(path) for path in jpg_paths])
         if (cache != None and not os.path.isfile(cache)):
             with open(cache, "wb") as f:
                 np.save(f, ref)
@@ -56,15 +56,15 @@ class resnetdlim:
         distances = None
         indices = None
 
-        if (os.path.isfile("INRIA_Holidays/distances.npy")):
-            with open("INRIA_Holidays/distances.npy", "rb") as f:
+        if (os.path.isfile(self.dataset_path + "/distances.npy")):
+            with open(self.dataset_path + "/distances.npy", "rb") as f:
                 distances = np.load(f)
             print ("\n    Loaded distances from cache...")
         else:
             print("\n   NO distances cached, generating.. ")
 
-        if (os.path.isfile("INRIA_Holidays/indices.npy")):
-            with open("INRIA_Holidays/indices.npy", "rb") as f:
+        if (os.path.isfile(self.dataset_path + "/indices.npy")):
+            with open(self.dataset_path + "/indices.npy", "rb") as f:
                 indices = np.load(f)
             print ("\n    Loaded indices from cache...")
         else:
@@ -75,16 +75,16 @@ class resnetdlim:
             query_vectors = self.get_embeddings(paths, 32, None)
             distances, indices = self.search_engine.kneighbors(query_vectors, 9)
            
-            with open("INRIA_Holidays/distances.npy", "wb") as f:
+            with open(self.dataset_path + "/distances.npy", "wb") as f:
                 np.save(f, distances)
 
-            with open("INRIA_Holidays/indices.npy", "wb") as f:
+            with open(self.dataset_path + "/indices.npy", "wb") as f:
                 np.save(f, indices)
         
         return (distances, indices)
 
     def mAp_resnet(self, results, queries, reference):
-        PATH_TO_GT = os.path.join("./", "INRIA_HOLYDAYS.json")
+        PATH_TO_GT = self.dataset_path + "/GT.json"
         gt_data = None
         with open(PATH_TO_GT, 'r') as in_gt:
             gt_data = json.load(in_gt)

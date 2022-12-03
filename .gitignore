@@ -1,4 +1,5 @@
-INRIA_Holidays/*
+INRIA_Holidays/jpg/*
+INRIA_Holidays/*.npy
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

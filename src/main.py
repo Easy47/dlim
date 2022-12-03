@@ -7,20 +7,20 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--data", default=None, help="Load path of the dataset folder")
     args = parser.parse_args()
     if (args.data is not None):
-        paths = utils.collect_INRIA_Holidays_paths(args.data)
-        model = resnet50.resnetdlim()
-        model.get_reference(paths)
+        jpg_paths = utils.collect_INRIA_Holidays_paths(args.data)
+        model = resnet50.resnetdlim(args.data)
+        model.get_reference(jpg_paths)
         print("Execute Query")
 
-        queries = paths
-        reference = model.paths
+        queries = jpg_paths
+        reference = model.jpg_paths
         distances, results = model.execute_query(queries)
         print("Res", results[0])
         print("Dis", distances[0])
-        print("paths", paths[0])
+        print("jpg path", jpg_paths[0])
 
         # for r in result[0]:
-        #     print(paths[r])
+        #     print(jpg_paths[r])
         # print(distance, result)
         
         
