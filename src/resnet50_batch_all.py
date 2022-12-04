@@ -22,10 +22,12 @@ class DistanceLayer(layers.Layer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def call(self, anchor, positive, negative):
-        ap_distance = tf.reduce_sum(tf.square(anchor - positive), -1)
-        an_distance = tf.reduce_sum(tf.square(anchor - negative), -1)
-        return (ap_distance, an_distance)
+    def call(self, embeddings):
+      dot_product = tf.matmul(embeddings, tf.transpose(embeddings))
+      square_norm = tf.linalg.diag_part(dot_product)
+      distances = tf.expand_dims(square_norm, 0) - 2.0 * dot_product + tf.expand_dims(square_norm, 1)
+      distances = tf.maximum(distances, 0.0)
+      return distances
 
 class SiameseModel(Model):
     """The Siamese Network model with a custom training and testing loops.
@@ -75,23 +77,46 @@ class SiameseModel(Model):
         return {"loss": self.loss_tracker.result()}
 
     def _compute_loss(self, data):
+        imgs, labels = data
         # The output of the network is a tuple containing the distances
         # between the anchor and the positive example, and the anchor and
         # the negative example.
-        ap_distance, an_distance = self.siamese_network(data)
-
-        # Computing the Triplet Loss by subtracting both distances and
-        # making sure we don't get a negative value.
+        """ap_distance, an_distance = self.siamese_network(data)
         loss = ap_distance - an_distance
-        loss = tf.maximum(loss + self.margin, 0.0)
-        return loss
+        loss = tf.maximum(loss + self.margin, 0.0)"""
+        pairwise_dist = self.siamese_network(imgs)
+  
+        anchor_positive_dist = tf.expand_dims(pairwise_dist, 2)
+        anchor_negative_dist = tf.expand_dims(pairwise_dist, 1)
+        triplet_loss = anchor_positive_dist - anchor_negative_dist + self.margin
+
+        # Put to zero the invalid triplets
+        # (where label(a) != label(p) or label(n) == label(a) or a == p)
+        mask = _get_triplet_mask(labels)
+        #mask = tf.to_float(mask)
+
+        mask = tf.cast(mask, tf.float32)
+        triplet_loss = tf.multiply(mask, triplet_loss)
+
+        # Remove negative losses (i.e. the easy triplets)
+        triplet_loss = tf.maximum(triplet_loss, 0.0)
+
+        # Count number of positive triplets (where triplet_loss > 0)
+        valid_triplets = tf.cast(tf.greater(triplet_loss, 1e-16), tf.float32)
+        #valid_triplets = tf.to_float(tf.greater(triplet_loss, 1e-16))
+        num_positive_triplets = tf.reduce_sum(valid_triplets)
+        num_valid_triplets = tf.reduce_sum(mask)
+        #fraction_positive_triplets = num_positive_triplets / (num_valid_triplets + 1e-16)
+
+        # Get final mean triplet loss over the positive valid triplets
+        triplet_loss = tf.reduce_sum(triplet_loss) / (num_positive_triplets + 1e-16)
+        return triplet_loss
 
     @property
     def metrics(self):
         # We need to list our metrics here so the `reset_states()` can be
         # called automatically.
         return [self.loss_tracker]
-
 target_shape = (224, 224)
 class resnet_triplets:
     def __init__(self, dataset_path, jpg_paths, dataset):
@@ -102,14 +127,14 @@ class resnet_triplets:
         self.val_dataset = None
 
         # Now create triplets
-        self.create_triplets(jpg_paths, dataset)
+        self.create_sets(jpg_paths, dataset)
 
         # First create network
-        if (not os.path.isdir("./models/embeddings")):
+        if (not os.path.isdir("./models/embeddings_batch_all")):
             print("create network")
             self.create_network()
         else:
-            self.resnet_feature_extractor = tf.keras.models.load_model('./models/embeddings')
+            self.resnet_feature_extractor = tf.keras.models.load_model('./models/embeddings_batch_all')
             print("feature extractor loaded")
 
         self.get_reference(jpg_paths)
@@ -138,32 +163,28 @@ class resnet_triplets:
 
         embedding = Model(base_cnn.input, output, name="Embedding")
         
-        anchor_input = layers.Input(name="anchor", shape=target_shape + (3,))
-        positive_input = layers.Input(name="positive", shape=target_shape + (3,))
-        negative_input = layers.Input(name="negative", shape=target_shape + (3,))
+        input = layers.Input(name="anchor", shape=target_shape + (3,))
 
         distances = DistanceLayer()(
-            embedding(resnet.preprocess_input(anchor_input)),
-            embedding(resnet.preprocess_input(positive_input)),
-            embedding(resnet.preprocess_input(negative_input)),
+            embedding(resnet.preprocess_input(input)),
         )
 
         siamese_network = Model(
-            inputs=[anchor_input, positive_input, negative_input], outputs=distances
+            inputs=[input], outputs=distances
         )
         
         siamese_model = SiameseModel(siamese_network)
-        siamese_model.compile(optimizer=tf.optimizers.Adam(0.0001), weighted_metrics=[])
+        siamese_model.compile(optimizer=tf.optimizers.Adam(0.0001))
 
         # TODO: we need to cache this
         siamese_model.fit(self.train_dataset, epochs=5, validation_data=self.val_dataset)
 
         # Save model
-        embedding.save("./models/embeddings")
+        embedding.save("./models/embeddings_batch_all")
         print("feature extractor saved")
         self.resnet_feature_extractor = embedding
 
-    def create_triplets(self, jpg_paths, dataset):
+    def create_sets(self, jpg_paths, dataset):
         self.jpg_paths = jpg_paths
        
         # load GT
@@ -172,59 +193,41 @@ class resnet_triplets:
         with open(PATH_TO_GT, 'r') as in_gt:
             gt_data = json.load(in_gt)
         
-        values = list(gt_data.values())
+        # Create path lists
+        test_x_path, test_y, train_x_path, train_y = utils.create_sets_from_gt(gt_data, nb_queries = 1, dataset = utils.Dataset.INRIA)
+    
+        image_count = len(train_x_path)
 
-        # Create path lists 
-        anchor_path = []
-        posi_path = []
-        # ATTENTION : pour INRIA Holidays on créée beaucoup de triplets doublons
-        for ii, imgid in enumerate(list(gt_data.keys())):
-            for posi in values[ii]:
-                
-                if (dataset == utils.Dataset.INRIA):
-                    anchor_path.append(utils.get_INRIA_path(imgid))
-                    posi_path.append(utils.get_INRIA_path(posi))
-                else:
-                    anchor_path.append(utils.get_Paris_path(imgid))
-                    posi_path.append(utils.get_Paris_path(posi))
-                break
-        
         # Create dataset from path lists
-        anchor_dataset = tf.data.Dataset.from_tensor_slices(anchor_path)
-        positive_dataset = tf.data.Dataset.from_tensor_slices(posi_path)
+        anchor_dataset = tf.data.Dataset.from_tensor_slices(train_x_path)
+        labels_set = tf.data.Dataset.from_tensor_slices(train_y)
 
-        # To generate the list of negative images, let's randomize the list of
-        # available images and concatenate them together.
+        dataset = tf.data.Dataset.zip((anchor_dataset, labels_set))
 
-        image_count = len(anchor_path)
-
-        # On shuffle avec la même seed pour garder la cohérence des paires.
-        rng = np.random.RandomState(seed=42)
-        rng.shuffle(anchor_path)
-        rng.shuffle(posi_path)
-
-        # Concat
-        negative_images = anchor_path + posi_path
-        np.random.RandomState(seed=32).shuffle(negative_images)
-
-        # On construit les négatives à partir de la concaténation des ancres et des images positives et on shuffle
-        negative_dataset = tf.data.Dataset.from_tensor_slices(negative_images)
-        negative_dataset = negative_dataset.shuffle(buffer_size= image_count * 2)
-
-        # Le dataset avec les triplets
-        dataset = tf.data.Dataset.zip((anchor_dataset, positive_dataset, negative_dataset))
         dataset = dataset.shuffle(buffer_size=image_count)
-        dataset = dataset.map(self.preprocess_triplets)
+        dataset = dataset.map(self.preprocess_image)
 
         # Let's now split our dataset in train and validation.
         train_dataset = dataset.take(round(image_count * 0.8))
         val_dataset = dataset.skip(round(image_count * 0.8))
 
-        self.train_dataset = train_dataset.batch(32, drop_remainder=False)
+        self.train_dataset = train_dataset.batch(256, drop_remainder=False)
         self.train_dataset.prefetch(8)
 
-        self.val_dataset = val_dataset.batch(32, drop_remainder=False)
+        self.val_dataset = val_dataset.batch(256, drop_remainder=False)
         self.val_dataset.prefetch(8)
+
+    def preprocess_image(self, filename, label):
+        """
+        Load the specified file as a JPEG image, preprocess it and
+        resize it to the target shape.
+        """
+        print(filename, label)
+        image_string = tf.io.read_file(filename)
+        image = tf.image.decode_jpeg(image_string, channels=3)
+        image = tf.image.convert_image_dtype(image, tf.float32)
+        image = tf.image.resize(image, target_shape)
+        return (image, label)
 
     def preprocess_image_for_triplets(self, filename):
         """
@@ -335,6 +338,7 @@ class resnet_triplets:
         #     print("query:", qname)
             # collect the positive results in the dataset
             # the positives have the same prefix as the query image
+            print(gt_data[IMG_IDS[qimno]])
             positive_results = [imgid_to_index[img_id] for img_id in gt_data[IMG_IDS[qimno]]]
         #     print("positive_results:", positive_results)
         #     print("qres:", qres)
@@ -362,3 +366,33 @@ class resnet_triplets:
             aps.append(ap)
 
         print("mean AP = %.3f" % np.mean(aps))  # FIXME mean average precision
+
+def _get_triplet_mask(labels):
+    """Return a 3D mask where mask[a, p, n] is True iff the triplet (a, p, n) is valid.
+    A triplet (i, j, k) is valid if:
+        - i, j, k are distinct
+        - labels[i] == labels[j] and labels[i] != labels[k]
+    Args:
+        labels: tf.int32 `Tensor` with shape [batch_size]
+    """
+    # Check that i, j and k are distinct
+    indices_equal = tf.cast(tf.eye(tf.shape(labels)[0]), tf.bool)
+    indices_not_equal = tf.logical_not(indices_equal)
+    i_not_equal_j = tf.expand_dims(indices_not_equal, 2)
+    i_not_equal_k = tf.expand_dims(indices_not_equal, 1)
+    j_not_equal_k = tf.expand_dims(indices_not_equal, 0)
+
+    distinct_indices = tf.logical_and(tf.logical_and(i_not_equal_j, i_not_equal_k), j_not_equal_k)
+
+
+    # Check if labels[i] == labels[j] and labels[i] != labels[k]
+    label_equal = tf.equal(tf.expand_dims(labels, 0), tf.expand_dims(labels, 1))
+    i_equal_j = tf.expand_dims(label_equal, 2)
+    i_equal_k = tf.expand_dims(label_equal, 1)
+
+    valid_labels = tf.logical_and(i_equal_j, tf.logical_not(i_equal_k))
+
+    # Combine the two masks
+    mask = tf.logical_and(distinct_indices, valid_labels)
+
+    return mask

@@ -2,6 +2,7 @@ import argparse
 import utils
 import resnet50
 import resnet50_triplets
+import resnet50_batch_all
 import utils
 
 if __name__ == '__main__':
@@ -9,16 +10,17 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--data", default=None, help="Load path of the dataset folder")
     args = parser.parse_args()
     if (args.data is not None):
-        nb_neigh = 100
+        nb_neigh = 10
+        # nb_neigh = 100
         args.data = args.data.strip(" /\n")
-        jpg_paths = utils.collect_Paris_buildings_paths(args.data)
-        # jpg_paths = utils.collect_INRIA_Holidays_paths(args.data)
+        # jpg_paths = utils.collect_Paris_buildings_paths(args.data)
+        jpg_paths = utils.collect_INRIA_Holidays_paths(args.data)
         # model = resnet50.resnetdlim(args.data, jpg_paths)
-        model = resnet50_triplets.resnet_triplets(args.data, jpg_paths, dataset=utils.Dataset.PARIS)
+        model = resnet50_batch_all.resnet_triplets(args.data, jpg_paths, dataset=utils.Dataset.INRIA)
         print("Execute Query")
         
-        queries = utils.get_Paris_buildings_queries()
-        # queries = jpg_paths
+        # queries = utils.get_Paris_buildings_queries()
+        queries = jpg_paths
         reference = model.jpg_paths
         distances, results = model.execute_query(queries, nb_neigh)
         # distances, results = model.execute_query(queries)
