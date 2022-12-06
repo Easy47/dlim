@@ -3,6 +3,7 @@ import utils
 import resnet50
 import resnet50_triplets
 import resnet50_batch_all
+import resnet50_batch_hard
 import utils
 
 if __name__ == '__main__':
@@ -13,10 +14,10 @@ if __name__ == '__main__':
         nb_neigh = 10
         # nb_neigh = 100
         args.data = args.data.strip(" /\n")
-        # jpg_paths = utils.collect_Paris_buildings_paths(args.data)
+        #jpg_paths = utils.collect_Paris_buildings_paths(args.data)
         jpg_paths = utils.collect_INRIA_Holidays_paths(args.data)
         # model = resnet50.resnetdlim(args.data, jpg_paths)
-        model = resnet50_batch_all.resnet_triplets(args.data, jpg_paths, dataset=utils.Dataset.INRIA)
+        model = resnet50.resnetdlim(args.data, jpg_paths)
         print("Execute Query")
         
         # queries = utils.get_Paris_buildings_queries()

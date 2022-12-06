@@ -20,7 +20,7 @@ class resnetdlim:
         )
         output = layers.Flatten()(self.ResNet.output)
         self.resnet_feature_extractor = Model(self.ResNet.input, output, name="Embedding")
-
+        self.resnet_feature_extractor.save("resnet_base")
         self.dataset_path = dataset_path
         self.get_reference(jpg_paths)
 
