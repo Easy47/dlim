@@ -22,7 +22,7 @@ app.secret_key = b'_5#y2L"F4Q8z\n\xec]/'
 class IndexForm(FlaskForm):
     dataset = wtforms.fields.RadioField('Dataset', choices=[("holidays", "Inria_Holidays"), ("paris", "Paris6k")], validators=[wtforms.validators.InputRequired()])
     distance = wtforms.fields.RadioField('Distance', choices=[("euclidean", "Euclidean distance"), ("cosine", "Cosine distance")], validators=[wtforms.validators.InputRequired()])
-    models = wtforms.fields.RadioField('Models', choices=[("baseline", "Baseline"), ("triplet", "Triplet Loss"), ("anchors", "Proxy Anchors")], validators=[wtforms.validators.InputRequired()])
+    models = wtforms.fields.RadioField('Models', choices=[("baseline", "Baseline"), ("tripletloss", "Triplet Loss"), ("anchors", "Proxy Anchors")], validators=[wtforms.validators.InputRequired()])
     nb_queries = wtforms.fields.IntegerField("Number of results", default=10, validators=[wtforms.validators.InputRequired(), wtforms.validators.NumberRange(min=1, max=100)])
     query = wtforms.fields.FileField(validators=[])
 
@@ -58,30 +58,30 @@ def query(dataset, model, nb_queries, distance, filename):
     if ((distance != "euclidean" and distance != "cosine")):
         redirect(url_for("index"))
     if (dataset == "holidays"):
-        cache_path = "./cache/INRIA_paths.npy"
-        if (os.path.isfile(cache_path)):
-            with open(cache_path, "rb") as f:
+        if (os.path.isfile("./cache/INRIA_paths.npy")):
+            with open("./cache/INRIA_paths.npy", "rb") as f:
                 jpg_paths = np.load(f, allow_pickle=True)
         else:
             jpg_paths = utils.collect_INRIA_Holidays_paths("./static/INRIA_Holidays/")
-        if (not os.path.isfile(cache_path)):
-                with open(cache_path, "wb") as f:
+        if (not os.path.isfile("./cache/INRIA_paths.npy")):
+                with open("./cache/INRIA_paths.npy", "wb") as f:
                     np.save(f, np.array(jpg_paths))
         cache_path = "./cache/INRIA.npy"
+        embeddings_path = f"./cache/INRIA_embeddings_{model}.npy"
     elif (dataset == "paris"):
-        cache_path = "./cache/PARIS_paths.npy"
-        if (os.path.isfile(cache_path)):
-            with open(cache_path, "rb") as f:
+        if (os.path.isfile("./cache/PARIS_paths.npy")):
+            with open("./cache/PARIS_paths.npy", "rb") as f:
                 jpg_paths = np.load(f, allow_pickle=True)
         else:
             jpg_paths = utils.collect_Paris_buildings_paths("./static/Paris_buildings/")
-        if (not os.path.isfile(cache_path)):
-                with open(cache_path, "wb") as f:
+        if (not os.path.isfile("./cache/PARIS_paths.npy")):
+                with open("./cache/PARIS_paths.npy", "wb") as f:
                     np.save(f, np.array(jpg_paths))
         cache_path = "./cache/PARIS.npy"
+        embeddings_path = f"./cache/PARIS_embeddings_{model}.npy"
     else:
         redirect(url_for("index"))
-    if (model != "baseline" and model != "triplet" and model != "anchors"):
+    if (model is None or (model != "baseline" and model != "tripletloss" and model != "anchors")):
         redirect(url_for("index"))
     else:
         m = tf.keras.models.load_model("models/" + model, compile=False)
@@ -95,30 +95,38 @@ def query(dataset, model, nb_queries, distance, filename):
     if (not os.path.isfile(cache_path)):
             with open(cache_path, "wb") as f:
                 np.save(f, ref)
-    # Add preprocess images in cache
-    dataset = tf.data.Dataset.from_tensor_slices(ref)
-    dataset = dataset.batch(16, drop_remainder=False)
-    # Get features (size of 2048)
-    embeddings = m.predict(dataset, verbose=0)
-    if (filename is None or not os.path.isfile("./static/upload/" + filename)):
-        filename = jpg_paths[0]
+    # Save preprocess images in cache
+    embeddings = None
+    if (os.path.isfile(embeddings_path)):
+        with open(embeddings_path, "rb") as f:
+            embeddings = np.load(f, allow_pickle=True)
     else:
-        filename = "./static/upload/" + filename
-    filename = str(filename)
-    # Make a query
+        # Extract features (size of 2048)
+        dataset = tf.data.Dataset.from_tensor_slices(ref)
+        dataset = dataset.batch(16, drop_remainder=False)
+        embeddings = m.predict(dataset, verbose=0)
+    if (not os.path.isfile(embeddings_path)):
+            with open(embeddings_path, "wb") as f:
+                np.save(f, embeddings)
+    
+    # Get the query image
+    if (filename is None or not os.path.isfile("./static/upload/" + filename)):
+        filename = str(jpg_paths[0])
+    else:
+        filename = "./static/upload/" + str(filename)
+    # Make the query
     search_engine = NearestNeighbors(metric=distance, algorithm='brute')
     search_engine.fit(embeddings)
     # Preprocess query image
-    test_image = np.array([preprocess_image(filename)])
-    test_dataset = tf.data.Dataset.from_tensor_slices(test_image)
+    test_dataset = tf.data.Dataset.from_tensor_slices(np.array([preprocess_image(filename)]))
     test_dataset = test_dataset.batch(16, drop_remainder=False)
     test_embeddings = m.predict(test_dataset, verbose=0)
+    # Retrive images with the highest similarities
     distances, indices = search_engine.kneighbors(test_embeddings, nb_queries)
     images_paths = [jpg_paths[i][9:] for i in indices[0]]
     return render_template("query.html", data={
-        "images": images_paths, "query": filename[9:], "distances": list(distances[0])
+        "images": images_paths, "query": filename[9:], "distances": list(distances[0]), "total": embeddings.shape[0], "nb_queries": nb_queries
     })
-
 
 @app.errorhandler(404)
 def page_not_found(error):

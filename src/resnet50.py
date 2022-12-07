@@ -126,7 +126,7 @@ class resnetdlim:
             # accumulate trapezoids with this basis
             recall_step = 0
             if (nb_neigh - 1 > len(positive_results)):
-                recall_step = 1.0 / len(positive_results)  # FIXME what is the size of a step?
+                recall_step = 1.0 / len(positive_results)
             else:
                 recall_step = 1.0 / (nb_neigh - 1)
 
