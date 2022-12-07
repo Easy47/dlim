@@ -1,5 +1,4 @@
 import argparse
-import utils
 import resnet50
 import resnet50_triplets
 import resnet50_batch_all

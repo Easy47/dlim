@@ -2,6 +2,7 @@ INRIA_Holidays/jpg/*
 INRIA_Holidays/*.npy
 Paris_buildings/jpg/*
 Paris_buildings/*.npy
+*.jpg
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

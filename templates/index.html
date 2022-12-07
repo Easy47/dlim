@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+{% block title %}Main Page{% endblock %}
+{% block content %}
+<main class="flex-shrink-0" role="main">
+  <div class="container-xl">
+    <form action="/" method=post enctype="multipart/form-data">
+      {{ form.csrf_token }}
+      <div class="row py-2 px-2">
+        <h4>Number of results</h4>
+        {{ form.nb_queries }}
+      </div>
+      <div class="row py-2 px-2">
+        <h4>Select a dataset</h4>
+        {% for subfield in form.dataset %}
+        <div>
+          {{ subfield.label }} {{ subfield }}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="row py-2 px-2">
+        <h4>Select a distance to calculate similarity between images</h4>
+        {% for subfield in form.distance %}
+        <div>
+          {{ subfield.label }} {{ subfield }}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="row py-2 px-2">
+        <h4>Select a models</h4>
+        {% for subfield in form.models %}
+        <div>
+          {{ subfield.label }} {{ subfield }}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="row py-2 px-2">
+        <h4>Upload an image</h4>
+        <div>
+        {{ form.query }}
+        </div>
+      </div>
+      <input type=submit value="Run a query">
+    </form>
+  </div>
+</main>
+{% endblock %}
