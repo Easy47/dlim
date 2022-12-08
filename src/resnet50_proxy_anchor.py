@@ -114,11 +114,6 @@ def mAp_resnet(results, queries, references, nb_neigh=9):
         # collect the positive results in the dataset
         # the positives have the same prefix as the query image
         positive_results = [gt_mapping[img_id] for img_id in gt_data[qname]]
-        # print(positive_results)
-        # print([list(gt_mapping.keys())[pos] for pos in positive_results])
-        # break
-        #
-        # ranks of positives. We skip the result #0, assumed to be the query image
         qres = [reference_indexes[r] for r in qres]
         ranks = [i for i, res in enumerate(qres) if res in positive_results]
         #

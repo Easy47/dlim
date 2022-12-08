@@ -20,6 +20,9 @@ app = Flask(__name__, template_folder=template_dir, instance_path=instance_dir, 
 app.secret_key = b'_5#y2L"F4Q8z\n\xec]/'
 
 class IndexForm(FlaskForm):
+    """
+    Form used in the index page
+    """
     dataset = wtforms.fields.RadioField('Dataset', choices=[("holidays", "Inria_Holidays"), ("paris", "Paris6k")], validators=[wtforms.validators.InputRequired()])
     distance = wtforms.fields.RadioField('Distance', choices=[("euclidean", "Euclidean distance"), ("cosine", "Cosine distance")], validators=[wtforms.validators.InputRequired()])
     models = wtforms.fields.RadioField('Models', choices=[("baseline", "Baseline"), ("tripletloss", "Triplet Loss"), ("anchors", "Proxy Anchors")], validators=[wtforms.validators.InputRequired()])
@@ -28,8 +31,7 @@ class IndexForm(FlaskForm):
 
 def preprocess_image(filename):
     """
-    Load the specified file as a JPEG image, preprocess it and
-    resize it to the target shape.
+    Load the specified file as a JPEG image, preprocess it.
     """
     image = tf.keras.utils.load_img(filename)
     image = image.convert('RGB')
@@ -106,7 +108,7 @@ def query(dataset, model, nb_queries, distance, filename):
         with open(embeddings_path, "rb") as f:
             embeddings = np.load(f, allow_pickle=True)
     else:
-        # Extract features (size of 2048)
+        # Extract features vectors (size of 2048)
         dataset = tf.data.Dataset.from_tensor_slices(ref)
         dataset = dataset.batch(16, drop_remainder=False)
         embeddings = m.predict(dataset, verbose=0)
