@@ -37,26 +37,27 @@ flask --app src/main_flask run
 
 ## File Structure
 
-Describe files of this repos:
-Jupyter, py, directories
+The __model__ directory contains the saved models so we don't have to retrain them at each execution.
 
-The src directory contains the python scripts of our project. They are as follows :  
+The __src__ directory contains the python scripts of our project. They are as follows :  
 
-__main.py__ : script to start the program on the shell. Compute the entire pipeline and print the mAp at the end.
+&nbsp;&nbsp;&nbsp;&nbsp;. __main.py__ : script to start the program on the shell. Compute the entire pipeline and print the mAp at the end.
 
-__main_flask.py__ : script to start the program using flask.
+&nbsp;&nbsp;&nbsp;&nbsp;. __main_flask.py__ : script to start the program using flask.
 
-__resnet50.py__ : the baseline implmentation.
+&nbsp;&nbsp;&nbsp;&nbsp;. __resnet50.py__ : the baseline implmentation.
 
-__resnet_50_proxy_anchor.py__ : the proxy anchor implmentation.
+&nbsp;&nbsp;&nbsp;&nbsp;. __resnet_50_proxy_anchor.py__ : the proxy anchor implmentation.
 
-__utils.py__ : various utility functions to get paths of jpgs in datasets, extracting a test set, etc.
+&nbsp;&nbsp;&nbsp;&nbsp;. __utils.py__ : various utility functions to get paths of jpgs in datasets, extracting a test set, etc.
 
-__notebook_tripletloss.ipynb__ : contains the resnet baseline, implementations and various tests about the triplet loss (batch all and batch hard strategies, data augmentation...).
+The __static__ directory contains our lebellisation for the datasets.
+
+The __template__ directory contains our template for the flask app.
+
+The file __notebook_tripletloss.ipynb__ contains the resnet baseline, implementations and various tests about the triplet loss (batch all and batch hard strategies, data augmentation...).
 
 ## Datasets
-
-Add links and some explanations
 
 ### INRIA Holidays
 
