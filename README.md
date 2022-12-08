@@ -61,7 +61,7 @@ The file __notebook_tripletloss.ipynb__ contains the resnet baseline, implementa
 
 ## Datasets
 
-Datasets HAVE to be downloaded and copied to the root of the project.
+Datasets HAVE to be downloaded and copied to the "static" folder of the project.
 
 ### INRIA Holidays
 
