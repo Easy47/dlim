@@ -11,19 +11,19 @@ import os
 import json
 import glob 
 
-target_shape = (224, 224)
 class resnetdlim:
-    def __init__(self, dataset_path, jpg_paths):
+    def __init__(self, dataset_path, jpg_paths, metric):
         # Creation of the model using resnet input and flattened resnet output
         self.ResNet = resnet.ResNet50(
-            weights="imagenet", include_top=False,  input_shape=target_shape + (3,), pooling="avg"
+            weights="imagenet", include_top=False,  input_shape=(224, 224, 3), pooling="avg"
         )
         output = layers.Flatten()(self.ResNet.output)
         self.resnet_feature_extractor = Model(self.ResNet.input, output)
+        self.resnet_feature_extractor.save("./models/baseline", overwrite=True, include_optimizer=False)
         self.dataset_path = dataset_path
-        self.get_reference(jpg_paths)
+        self.get_reference(jpg_paths, metric)
 
-    def get_reference(self, jpg_paths):
+    def get_reference(self, jpg_paths, metric="euclidean"):
         # Set jpg_paths to get it back latter
         self.jpg_paths = jpg_paths
 
@@ -31,7 +31,7 @@ class resnetdlim:
         self.ref_embedding = self.get_embeddings(jpg_paths, 16, self.dataset_path + "/cache.npy")
 
         # Fit search_engine on embeddings
-        self.search_engine = NearestNeighbors()
+        self.search_engine = NearestNeighbors(metric=metric, algorithm='brute')
         self.search_engine.fit(self.ref_embedding)
 
     def preprocess_image(self, filename):
@@ -41,7 +41,7 @@ class resnetdlim:
         """
         image = tf.keras.utils.load_img(filename)
         image = image.convert('RGB')
-        image = image.resize((target_shape))
+        image = image.resize(((224, 224)))
         return preprocess_input(np.array(image))
 
     def get_embeddings(self, jpg_paths, batch_size, cache=None):
@@ -141,5 +141,4 @@ class resnetdlim:
                 ap += ((precision_0 + precision_1) * recall_step) / 2
             print("query %s, AP = %.3f" % (qname, ap))
             aps.append(ap)
-
-        print("mean AP = %.3f" % np.mean(aps)) 
+        print("mean AP = %.3f" % np.mean(aps))

@@ -1,6 +1,9 @@
 import glob
 from enum import Enum
 import json
+from collections import Counter
+import numpy as np
+
 
 class Dataset(Enum):
     INRIA = 0
@@ -15,6 +18,9 @@ def get_Paris_path(filename):
     return "/".join(["./static/Paris_buildings/jpg", folder, filename]) + ".jpg"
 
 def collect_INRIA_Holidays_paths(path):
+    """
+    Retrieve all image paths from INRIA Holidays Dataset
+    """
     path = path.strip()
     imgs = None
     if (path[-1] == "/"):
@@ -24,6 +30,9 @@ def collect_INRIA_Holidays_paths(path):
     return imgs
 
 def collect_Paris_buildings_paths(path):
+    """
+    Retrieve all image paths from Paris6k Dataset
+    """
     path = path.strip()
     imgs = None
     if (path[-1] == "/"):
@@ -33,6 +42,9 @@ def collect_Paris_buildings_paths(path):
     return imgs
 
 def get_Paris_buildings_queries():
+    """
+    Retrieve all files from Paris6k Dataset
+    """
     path = "./static/Paris_buildings/GT.json"
     f = open(path, "r")
     data = json.load(f)
@@ -84,6 +96,9 @@ def create_sets_from_gt(gt_data, nb_queries = 1, dataset = Dataset.INRIA):
     return test_x_path, test_y, train_x_path, train_y
 
 def create_sets_from_gt_Paris(gt_data, nb_queries = 1):
+    """
+    Extract from Paris Dataset, a training and a test set that contains 'nb_queries' images per class
+    """
     values = list(gt_data.values())
     test_x_path = []
     test_y = []
@@ -100,13 +115,13 @@ def create_sets_from_gt_Paris(gt_data, nb_queries = 1):
         counter = Counter(directories)
         index = np.argmax(list(counter.values()))
         label = classes.index(list(counter.keys())[index])
-        path = utils.get_Paris_path(imgid)
+        path = get_Paris_path(imgid)
         if (not path in test_x_path and not path in train_x_path):
             test_x_path.append(path)
             test_y.append(label)
             counts[label] += 1
         for posi in gt_data[imgid]:
-            image_name = utils.get_Paris_path(posi)
+            image_name = get_Paris_path(posi)
             if (counts[label] < nb_queries):
                 if (not image_name in test_x_path and not image_name in train_x_path):
                     test_x_path.append(image_name)

@@ -1,29 +1,73 @@
 import argparse
 import resnet50
-import resnet50_triplets
-import resnet50_batch_all
-import resnet50_batch_hard
+import resnet50_proxy_anchor
 import utils
+import json
+import sklearn
+import tensorflow as tf
+import numpy as np
+import os
+from sklearn.neighbors import NearestNeighbors
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument("-d", "--data", default=None, help="Load path of the dataset folder")
+    parser = argparse.ArgumentParser(description='Ues one model on the Paris6k dataset')
+    parser.add_argument("-m", "--model", default="baseline", choices=['baseline', 'proxy_anchor'])
+    parser.add_argument("--dist", default="euclidean", choices=["cosine", "euclidean"])
     args = parser.parse_args()
-    if (args.data is not None):
-        nb_neigh = 10
-        # nb_neigh = 100
-        args.data = args.data.strip(" /\n")
-        jpg_paths = utils.collect_Paris_buildings_paths(args.data)
-        #jpg_paths = utils.collect_INRIA_Holidays_paths(args.data)
-        # model = resnet50.resnetdlim(args.data, jpg_paths)
-        model = resnet50.resnetdlim(args.data, jpg_paths)
-        print("Execute Query")
-        
-        queries = utils.get_Paris_buildings_queries()
-        reference = model.jpg_paths
-        distances, results = model.execute_query(queries, nb_neigh)
-        # distances, results = model.execute_query(queries)
-        print("Results shape : ", results.shape)
-        # model.mAp_resnet(results, queries, reference)
-        model.mAp_resnet(results, queries, reference, nb_neigh)
-        print("Nombre d'image dans le dataset", len(reference))
+    # Search with one more because the model contains all images of the dataset including the testing set
+    nb_neigh = 10
+    batch_size = 16
+    
+    f = open("./static/Paris_buildings/GT.json", "r")
+    data = json.load(f)
+    f.close()
+    # Many images are not annoted, so we removed them
+    test_x_path, test_y, train_x_path, train_y = utils.create_sets_from_gt_Paris(data, nb_queries = 25)
+    print("Train dataset have", len(train_x_path), "images.")
+    print("Test dataset have", len(test_x_path), "images.")
+    model = None
+    # Load only images of the Paris6k dataset
+    if (args.model == "baseline"):
+        # jpg_paths = utils.collect_Paris_buildings_paths("./static/Paris_buildings")
+        # print("Dataset have", len(jpg_paths), "images.")
+        model = resnet50.resnetdlim("./static/Paris_buildings", train_x_path, args.dist)
+        distances, results = model.execute_query(test_x_path, nb_neigh)
+        resnet50_proxy_anchor.mAp_resnet(results, test_x_path, train_x_path, nb_neigh)
+    elif (args.model == "proxy_anchor"):
+        # Train a new model
+        train_x_path, train_y = sklearn.utils.shuffle(train_x_path, train_y)
+
+        if (not os.path.isdir("./models/anchors")):
+            print("Load training dataset")
+            train_dataset = tf.data.Dataset.from_tensor_slices(np.array([resnet50_proxy_anchor.preprocess_image(file) for file in train_x_path]))
+            labels_set = tf.data.Dataset.from_tensor_slices(train_y)
+            train_dataset = tf.data.Dataset.zip((train_dataset, labels_set))
+            train_dataset = train_dataset.batch(batch_size, drop_remainder=False)
+            # Data augmentation
+            data_augmentation = tf.keras.Sequential([tf.keras.layers.RandomFlip("horizontal_and_vertical")])
+            train_dataset = train_dataset.map(lambda x, y: (data_augmentation(x, training=True), y), num_parallel_calls=tf.data.AUTOTUNE)
+            train_dataset.prefetch(8)
+            model = resnet50_proxy_anchor.ResNet50_ProxyAnchor(nb_classes=11)
+            print("Launch training")
+            model.training(train_dataset, epochs=20, lr=0.0001)
+            print("Rerun the program to run metrics !")
+            exit(1)
+        model = tf.keras.models.load_model("./models/anchors", compile=False)
+        ref = np.array([resnet50_proxy_anchor.preprocess_image(file) for file in train_x_path])
+        train = tf.data.Dataset.from_tensor_slices((ref))
+        train = train.batch(batch_size)
+        testing = np.array([resnet50_proxy_anchor.preprocess_image(file) for file in test_x_path])
+        test_dataset = tf.data.Dataset.from_tensor_slices((testing))
+        test_dataset = test_dataset.batch(batch_size)
+        print("Generate features")
+        queries = model.predict(test_dataset)
+        print(queries.shape)
+        references_embeddings = model.predict(train)
+        print(references_embeddings.shape)
+        search_engine = NearestNeighbors(metric=args.dist, algorithm="brute")
+        search_engine.fit(references_embeddings)
+        distances, results = search_engine.kneighbors(queries, nb_neigh)
+        resnet50_proxy_anchor.mAp_resnet(results, test_x_path, train_x_path, nb_neigh)
+    else:
+        print("Specify the model !")
+        exit(1)
