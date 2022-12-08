@@ -70,3 +70,23 @@ The INIRIA Holidays dataset consists of 1491 images in total: 500 queries and 99
 https://www.robots.ox.ac.uk/~vgg/data/parisbuildings/
 
 The Paris Dataset consists of 6412 images collected from Flickr by searching for particular Paris landmarks.
+
+## Tasks division
+
+__Dataset Pesearch__ : Gauthier, Mathieu, Nicolas, Ancelin
+
+__Data Preprocessing__ : Mathieu, Nicolas
+
+__Benchmark__ : Gauthier, Mathieu, Nicolas
+
+__Refactor__ : Gauthier, Mathieu
+
+__Resnet__ : Gauthier, Nicolas
+
+__Triplets__ : Gauthier, Mathieu, Nicolas
+
+__Online Mining__ : Nicolas
+
+__Proxy Anchor__ : Mathieu
+
+__Flask__ : Mathieu
