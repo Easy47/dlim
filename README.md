@@ -17,6 +17,7 @@ This project uses tensorflow 2.9.2.
 
 We have two main scripts: main.py and main_flask.
 *main.py* is used to train, save and measure performance of baseline and Proxy-Anchor models on the Paris6k dataset.
+
 ```
 options:
   -h, --help            show this help message and exit
@@ -34,6 +35,7 @@ python src/main.py --dist "cosine" -m "baseline"
 # Usage
 flask --app src/main_flask run
 ```
+It is MANDATORY to run main.py to save models before running flasks.
 
 ## File Structure
 
@@ -58,6 +60,8 @@ The __template__ directory contains our template for the flask app.
 The file __notebook_tripletloss.ipynb__ contains the resnet baseline, implementations and various tests about the triplet loss (batch all and batch hard strategies, data augmentation...).
 
 ## Datasets
+
+Datasets HAVE to be downloaded and copied to the root of the project.
 
 ### INRIA Holidays
 
