@@ -53,7 +53,7 @@ The __src__ directory contains the python scripts of our project. They are as fo
 
 &nbsp;&nbsp;&nbsp;&nbsp;. __utils.py__ : various utility functions to get paths of jpgs in datasets, extracting a test set, etc.
 
-The __static__ directory contains our lebellisation for the datasets.
+The __static__ directory contains our labellisation and images of the datasets. The upload folder in it is where images for queries goes.
 
 The __template__ directory contains our template for the flask app.
 
@@ -74,6 +74,10 @@ The INIRIA Holidays dataset consists of 1491 images in total: 500 queries and 99
 https://www.robots.ox.ac.uk/~vgg/data/parisbuildings/
 
 The Paris Dataset consists of 6412 images collected from Flickr by searching for particular Paris landmarks.
+
+## Queries
+
+Images used for queries HAVE to be in the static/upload folder.
 
 ## Tasks division
 
