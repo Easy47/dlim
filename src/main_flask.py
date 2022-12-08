@@ -38,10 +38,12 @@ def preprocess_image(filename):
 
 @app.route('/', methods=['POST', 'GET'])
 def index():
+    """
+    Display index page and manage form
+    """
     form = IndexForm(request.form)
     if request.method == "POST" and form.validate():
         f = request.files['query']
-        path = ""
         filename = secure_filename(f.filename)
         if (filename != "" and filename is not None):
             path = os.path.join(app.instance_path, filename)
@@ -54,6 +56,9 @@ def index():
 @app.route('/query/<dataset>/<model>/<int:nb_queries>/<distance>', defaults={'filename': None})
 @app.route('/query/<dataset>/<model>/<int:nb_queries>/<distance>/<filename>')
 def query(dataset, model, nb_queries, distance, filename):
+    """
+    Make a research with a query image and display images found with lowest distances according to the selected model and metric.
+    """
     jpg_paths, m, cache_path = None, None, None
     if ((distance != "euclidean" and distance != "cosine")):
         redirect(url_for("index"))

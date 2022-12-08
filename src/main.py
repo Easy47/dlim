@@ -10,9 +10,9 @@ import os
 from sklearn.neighbors import NearestNeighbors
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Ues one model on the Paris6k dataset')
-    parser.add_argument("-m", "--model", default="baseline", choices=['baseline', 'proxy_anchor'])
-    parser.add_argument("--dist", default="euclidean", choices=["cosine", "euclidean"])
+    parser = argparse.ArgumentParser(description='Script used to measure performance of each model on the Paris6k dataset.')
+    parser.add_argument("-m", "--model", default="baseline", choices=['baseline', 'proxy_anchor'], help="CBIR models")
+    parser.add_argument("--dist", default="euclidean", choices=["cosine", "euclidean"], help="Distance metrics used to measure similarities")
     args = parser.parse_args()
     # Search with one more because the model contains all images of the dataset including the testing set
     nb_neigh = 10

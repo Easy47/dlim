@@ -20,44 +20,21 @@ class ProxyAnchor(Layer):
     """
     def __init__(self,
                  units,
-                 kernel_initializer="he_normal",
-                 kernel_regularizer=None,
-                 kernel_constraint=None,
                  **kwargs):
         super(ProxyAnchor, self).__init__(**kwargs)
 
         self.units = units
-        self.kernel_initializer = initializers.get(kernel_initializer)
-        self.kernel_regularizer = regularizers.get(kernel_regularizer)
-        self.kernel_constraint = constraints.get(kernel_constraint)
+        self.kernel_init = initializers.get("he_normal")
 
     def build(self, input_shape):
         self.kernel = self.add_weight(
-            name="kernel",
             dtype=tf.float32,
             shape=[input_shape[1], self.units],
-            initializer=self.kernel_initializer,
-            regularizer=self.kernel_regularizer,
-            constraint=self.kernel_constraint,
-            trainable=True)
-
+            initializer=self.kernel_init, trainable=True)
         super(ProxyAnchor, self).build(input_shape)
 
     def call(self, inputs):
         return tf.matmul(tf.nn.l2_normalize(inputs, axis=1), tf.nn.l2_normalize(self.kernel, axis=0))
-
-    def get_config(self):
-        config = {
-            "units":
-                self.units,
-            "kernel_initializer":
-                initializers.serialize(self.kernel_initializer),
-            "kernel_regularizer":
-                regularizers.serialize(self.kernel_regularizer),
-            "kernel_constraint":
-                constraints.serialize(self.kernel_constraint)
-        }
-        return dict(list(super(ProxyAnchor, self).get_config().items()) + list(config.items()))
 
 
 def proxy_anchor_loss(y_true, y_pred, margin=0.1, alpha=32):
