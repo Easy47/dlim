@@ -35,7 +35,7 @@ python src/main.py --dist "cosine" -m "baseline"
 # Usage
 flask --app src/main_flask run
 ```
-It is MANDATORY to download models or run main.py to save models (The Paris Dataset only) before running flasks.
+It is MANDATORY to download models (https://drive.google.com/drive/folders/1VWLrGmjvplOiY_e3vDRkRNJImFDl7-G0) and put them in the "models" directory, OR run main.py to save models (The Paris Dataset only) before running flasks.
 
 ## File Structure
 
