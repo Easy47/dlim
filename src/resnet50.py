@@ -58,6 +58,8 @@ class resnetdlim:
         if (cache != None and not os.path.isfile(cache)):
             with open(cache, "wb") as f:
                 np.save(f, ref)
+
+        # predict and return the result
         train_dataset = tf.data.Dataset.from_tensor_slices((ref))
         train_dataset = train_dataset.batch(batch_size)
         ref_embedding = self.resnet_feature_extractor.predict(train_dataset)
@@ -85,9 +87,12 @@ class resnetdlim:
         # If there are no cache files, we generate them
         if (distances is None or indices is None):
             print("\n   generating ...")
+
+            # predict, get nearest neighbors and return results
             query_vectors = self.get_embeddings(paths, 16, None)
             distances, indices = self.search_engine.kneighbors(query_vectors, nb_neigh)
            
+            # Cache the results
             with open(self.dataset_path + "/distances.npy", "wb") as f:
                 np.save(f, distances)
 

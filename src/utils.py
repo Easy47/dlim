@@ -4,7 +4,7 @@ import json
 from collections import Counter
 import numpy as np
 
-
+# Enum to choose between the 2 datasets
 class Dataset(Enum):
     INRIA = 0
     PARIS = 1
