@@ -1,6 +1,6 @@
 flask
 flask-wtf
-tensoflow==2.9.2
+tensorflow==2.9.2
 numpy
 sklearn
-tensoflow-addons
+tensorflow-addons
