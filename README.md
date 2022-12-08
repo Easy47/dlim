@@ -40,6 +40,13 @@ flask --app src/main_flask run
 Describe files of this repos:
 Jupyter, py, directories
 
+notebook_tripletloss.ipynb contains the resnet baseline, implementations and various tests about the triplet loss (batch all and batch hard strategies, data augmentation...)
+
 ## Datasets
 
 Add links and some explanations
+
+INRIA Holidays
+https://lear.inrialpes.fr/~jegou/data.php
+ 
+PARIS
