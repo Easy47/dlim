@@ -15,14 +15,14 @@ if __name__ == '__main__':
     parser.add_argument("--dist", default="euclidean", choices=["cosine", "euclidean"], help="Distance metrics used to measure similarities")
     args = parser.parse_args()
     # Search with one more because the model contains all images of the dataset including the testing set
-    nb_neigh = 10
+    nb_neigh = 21
     batch_size = 16
     # Open ground truth to collect classes
     f = open("./static/Paris_buildings/GT.json", "r")
     data = json.load(f)
     f.close()
     # Many images are not annoted in the Paris6k
-    test_x_path, test_y, train_x_path, train_y = utils.create_sets_from_gt_Paris(data, nb_queries = 25)
+    test_x_path, test_y, train_x_path, train_y = utils.create_sets_from_gt_Paris(data, nb_queries = 50)
     print("Train dataset have", len(train_x_path), "images.")
     print("Test dataset have", len(test_x_path), "images.")
     model = None

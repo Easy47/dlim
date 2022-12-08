@@ -115,14 +115,16 @@ def mAp_resnet(results, queries, references, nb_neigh=9):
         # the positives have the same prefix as the query image
         positive_results = [gt_mapping[img_id] for img_id in gt_data[qname]]
         qres = [reference_indexes[r] for r in qres]
-        ranks = [i for i, res in enumerate(qres) if res in positive_results]
+
+        # ranks of positives. We skip the result #0, assumed to be the query image
+        ranks = [i for i, res in enumerate(qres[1:]) if res in positive_results]
         #
         # accumulate trapezoids with this basis
         recall_step = 0
         if (nb_neigh > len(positive_results)):
             recall_step = 1.0 / len(positive_results)  # FIXME what is the size of a step?
         else:
-            recall_step = 1.0 / nb_neigh
+            recall_step = 1.0 / (nb_neigh - 1)
 
         ap = 0
         for ntp, rank in enumerate(ranks):
