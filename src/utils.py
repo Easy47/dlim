@@ -43,10 +43,7 @@ def create_sets_from_gt_Paris(gt_data, nb_queries = 1):
     Extract from Paris Dataset, a training and a test set that contains 'nb_queries' images per class
     """
     values = list(gt_data.values())
-    test_x_path = []
-    test_y = []
-    train_x_path = []
-    train_y = []
+    test_x_path, test_y, train_x_path, train_y = [], [], [], []
     counts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     # 11 classes
     classes = ["defense", "triomphe","pompidou","eiffel","invalides","pantheon","moulinrouge","museedorsay","sacrecoeur","notredame", "louvre"]

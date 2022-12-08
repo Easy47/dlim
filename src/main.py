@@ -50,6 +50,7 @@ if __name__ == '__main__':
             model.training(train_dataset, epochs=20, lr=0.0001)
             print("Re-run the program to run metrics !")
             exit(1)
+        # Load the model based on the Proxy-Anchor loss
         model = tf.keras.models.load_model("./models/anchors", compile=False)
         ref = np.array([resnet50_proxy_anchor.preprocess_image(file) for file in train_x_path])
         train = tf.data.Dataset.from_tensor_slices((ref))

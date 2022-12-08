@@ -103,7 +103,7 @@ def mAp_resnet(results, queries, references, nb_neigh=9):
     IMG_IDS = [str(p).split('/')[-1][:-4] for p in references]
     # Ids of the queries
     QUERY_IDS = [str(p).split('/')[-1][:-4] for p in queries]
-
+    # Mapping between index and gt
     gt_mapping = {imgid: ii for ii, imgid in enumerate(gt_data.keys())}
 
     # Mapping from the image name to index in reference
