@@ -43,8 +43,3 @@ Jupyter, py, directories
 ## Datasets
 
 Add links and some explanations
-
-
-- Finir le rapport et les slides (relecture)
-- Modifier le benchmark et ajouter les Map pour le dataset de Paris
-- Initier le README
