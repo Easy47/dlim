@@ -52,7 +52,7 @@ __resnet_50_proxy_anchor.py__ : the proxy anchor implmentation.
 
 __utils.py__ : various utility functions to get paths of jpgs in datasets, extracting a test set, etc.
 
-notebook_tripletloss.ipynb contains the resnet baseline, implementations and various tests about the triplet loss (batch all and batch hard strategies, data augmentation...).
+__notebook_tripletloss.ipynb__ : contains the resnet baseline, implementations and various tests about the triplet loss (batch all and batch hard strategies, data augmentation...).
 
 ## Datasets
 
